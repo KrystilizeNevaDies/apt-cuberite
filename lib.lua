@@ -19,7 +19,7 @@ function ApiRequest(Header, URL, IsBase64)
     local Output = os.capture([[curl -s -H "]] .. Header .. [[" "]] .. URL .. [["]])
     if Output then
         -- LOGINFO(string.format("[%.2fs] Fetched: \"" .. URL .. "\" With Header: \"" .. Header .. "\"", os.clock() - Clock))
-        if IsBase64 then
+        if IsBase64 == true then
             return Base64Decode(Output)
         else
             return Output
