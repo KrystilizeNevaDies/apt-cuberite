@@ -9,29 +9,96 @@ function os.capture(cmd, raw)
   return s
 end
 
-function ApiRequest(Header, URL, IsBase64)
-    local Clock = os.clock()
-    
-    if IsBase64 == nil then
-        IsBase64 = true
-    end
-    
-    local Output = os.capture([[curl -s -H "]] .. Header .. [[" "]] .. URL .. [["]])
-    if Output then
-        -- LOGINFO(string.format("[%.2fs] Fetched: \"" .. URL .. "\" With Header: \"" .. Header .. "\"", os.clock() - Clock))
-        if IsBase64 == true then
-            return Base64Decode(Output)
-        else
-            return Output
-        end
-    else
-        LOGWARNING(string.format("[%.2fs] Failure!", os.clock() - Clock))
-        return false
-    end
+function ApiRequest(Headers, URL, CallBack)
+    -- Read the params from the command:
+	local url = URL
+
+	-- Define the cUrlClient callbacks
+	local callbacks =
+	{
+		OnStatusLine = function (self, a_HttpVersion, a_Status, a_Rest)
+			-- Only open the output file if the server reports a success:
+			if (a_Status ~= 200) then
+				LOG("Cannot download " .. url .. ", HTTP error code " .. a_Status)
+				return
+			end
+			self.m_Output = ""
+		end,
+
+		OnBodyData = function (self, a_Data)
+			-- If the file has been opened, write the data:
+			if (self.m_Output) then
+				self.m_Output = self.m_Output .. a_Data
+			end
+		end,
+
+		OnBodyFinished = function (self)
+			-- If the file has been opened, close it and report success
+			if (self.m_Output) then
+				print(self.m_Output)
+			end
+		end,
+	}
+
+	-- Start the URL download:
+	local isSuccess, msg = cUrlClient:Get(URL, callbacks)
+	if not(isSuccess) then
+		LOG("Cannot start an URL download: " .. (msg or ""))
+		return true
+	end
+	return true
 end
 
 
+function DownloadToFile(FileName, URL)  -- Console command handler
+	-- Read the params from the command:
+	local url = URL
+	local fnam = FileName
+	if (not(url) or not(fnam)) then
+		return true, "Missing parameters. Usage: download  "
+	end
 
+	-- Define the cUrlClient callbacks
+	local callbacks =
+	{
+		OnStatusLine = function (self, a_HttpVersion, a_Status, a_Rest)
+			-- Only open the output file if the server reports a success:
+			if (a_Status ~= 200) then
+				LOG("Cannot download " .. url .. ", HTTP error code " .. a_Status)
+				return
+			end
+			local f, err = io.open(fnam, "wb")
+			if not(f) then
+				LOG("Cannot download " .. url .. ", error opening the file " .. fnam .. ": " .. (err or ""))
+				return
+			end
+			self.m_File = f
+		end,
+
+		OnBodyData = function (self, a_Data)
+			-- If the file has been opened, write the data:
+			if (self.m_File) then
+				self.m_File:write(a_Data)
+			end
+		end,
+
+		OnBodyFinished = function (self)
+			-- If the file has been opened, close it and report success
+			if (self.m_File) then
+				self.m_File:close()
+				LOG("File " .. fnam .. " has been downloaded.")
+			end
+		end,
+	}
+
+	-- Start the URL download:
+	local isSuccess, msg = cUrlClient:Get(url, callbacks)
+	if not(isSuccess) then
+		LOG("Cannot start an URL download: " .. (msg or ""))
+		return true
+	end
+	return true
+end
 
 
 --[[

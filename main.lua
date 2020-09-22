@@ -17,6 +17,12 @@ end
 -- Entrypoint
 function HandleCmdApt(Split)
 
+    if not(Split[2]) then
+        LOGINFO("Apt-Cuberite version 1.0.0")
+        LOGINFO("Run [apt help] for help on usage")
+        return
+    end
+    
     -- remove capitalisation
     for _, Value in pairs(Split) do
         Value = string.lower(Value)
@@ -33,6 +39,8 @@ apt:
     info (Displays info on plugin)
     install (Installs plugin)
     remove (Removes Plugin)
+    list (lists local Plugins)
+    list all (lists all plugins)
         ]])
         
         
@@ -70,26 +78,57 @@ end
 
 -- apt install <plugin>
 function HandleInstallCMD(Split) -- run for each plugin
+    -- ensure pluginname is set
+    if Split[3] == nil then
+        LOGWARNING("You need to specify a plugin")
+        return
+    end
     for Key, PluginName in pairs(Split) do
         if Key > 2.5 then
-            HandleInstall(PluginName)
+            print("1")
+            DownloadToFile("Test.txt", "https://cuberite.krystilize.com/Plugins/core/Core.zip")
+            --[[
+            ApiRequest({"PluginInfo: " .. PluginName}, "https://cuberite.krystilize.com", function(Response)
+                Print(Response)
+                -- HandleInstallPrepare(PluginName, Response)
+            end)
+            ]]
         end
     end
 end
 
+function HandleInstallPrepare(PluginName, Info)
+    
+    print("a")
+        -- Save plugin info to Apt/Info
+    cFile:CreateFolderRecursive("Plugins/Apt/Info/" .. PluginName .. "/")
+    local file = io.open("Plugins/Apt/Info/" .. PluginName .. "/info.lua", "w+")
+    file:write(table.save(Info))
+    file:close()
+
+    cUrlClient:Get(Table.DownloadDirectory,
+        function(FileData)
+        
+            local file = io.open("Plugins/" .. Info.PluginDirectory .. ".zip", "w+")
+            file:write(FileData)
+            file:close()
+            
+            HandleInstall(PluginName)
+        
+        end
+    )
+    -- os.execute([[curl "]] .. Table.DownloadDirectory .. [[" --output ]] .. "Plugins/" .. Table.PluginDirectory .. ".zip")
+end
+
 function HandleInstall(PluginName) -- Install plugin
     -- Request data and parse into table
-    local Header = "PluginInfo: " .. PluginName
-    local Response = ApiRequest(Header, "https://cuberite.krystilize.com")
-    local Table = table.load(Response)
+    
+    local Table = table.load(io.open("Plugins/Apt/Info/" .. PluginName .. "/info.lua"))
+    
     if Table == nil then
         LOGWARNING("Plugin: " .. PluginName .. " not found.")
         return
     end
-    
-    -- Download using curl
-    LOGINFO("Downloading...")
-    os.execute([[curl "]] .. Table.DownloadDirectory .. [[" --output ]] .. "Plugins/" .. Table.PluginDirectory .. ".zip")
     
     -- Extract using 7zip
     LOGINFO("Extracting...")
@@ -104,14 +143,7 @@ function HandleInstall(PluginName) -- Install plugin
     if (IniFile:ReadFile("settings.ini")) then
         IniFile:SetValue("Plugins", Table.PluginDirectory, 1, true)
         IniFile:WriteFile("settings.ini")
-    end
-    
-    -- Save plugin info to Apt/Info
-    cFile:CreateFolderRecursive("Plugins/Apt/Info/" .. PluginName .. "/")
-    local file = io.open("Plugins/Apt/Info/" .. PluginName .. "/info.lua", "w+")
-    file:write(table.save(Table))
-    file:close()
-    
+    end    
     
     -- Finalise and load plugin
     cPluginManager:Get():RefreshPluginList()
@@ -122,6 +154,11 @@ end
 
 -- apt remove <plugin>
 function HandleRemoveCMD(Split)
+    -- ensure pluginname is set
+    if Split[3] == nil then
+        LOGWARNING("You need to specify a plugin")
+        return
+    end
     for Key, PluginName in pairs(Split) do
         if Key > 2.5 then
             HandleRemove(PluginName)
@@ -185,7 +222,7 @@ function HandleExternalList()
     local Table = table.load(Response)
     for Key, Value in pairs(Table) do -- log information on each
         LOGINFO(Key .. " aka. " .. Value.PluginDirectory)
-        LOG("Version: " .. Value.Version .. " | Download: " .. Value.DownloadDirectory .. "\r\n")
+        LOG("Version: " .. Value.Version .. " | " .. Value.ShortDescription .. "\r\n")
     end
 end
 
@@ -200,11 +237,17 @@ function HandleInternalList()
     for Key, Value in pairs(Table) do -- for each parsed table
         -- log into parsed table
         LOGINFO(Value.PluginDirectory)
-        LOG("Version: " .. Value.Version .. " | Download: " .. Value.DownloadDirectory .. "\r\n")
+        LOG("Version: " .. Value.Version .. " | " .. Value.ShortDescription .. "\r\n")
     end
 end
 
 function HandleInfo(PluginName)
+    -- ensure pluginname is set
+    if PluginName == nil then
+        LOGWARNING("You need to specify a plugin")
+        return
+    end
+
     -- get data from external database
     local Header = "PluginInfo: " .. PluginName
     local Response = ApiRequest(Header, "https://cuberite.krystilize.com")
