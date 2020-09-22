@@ -10,49 +10,27 @@ function os.capture(cmd, raw)
 end
 
 function ApiRequest(Headers, URL, CallBack)
-    -- Read the params from the command:
-	local url = URL
-
-	-- Define the cUrlClient callbacks
-	local callbacks =
-	{
-		OnStatusLine = function (self, a_HttpVersion, a_Status, a_Rest)
-			-- Only open the output file if the server reports a success:
-			if (a_Status ~= 200) then
-				LOG("Cannot download " .. url .. ", HTTP error code " .. a_Status)
-				return
-			end
-			self.m_Output = ""
-		end,
-
-		OnBodyData = function (self, a_Data)
-			-- If the file has been opened, write the data:
-			if (self.m_Output) then
-				self.m_Output = self.m_Output .. a_Data
-			end
-		end,
-
-		OnBodyFinished = function (self)
-			-- If the file has been opened, close it and report success
-			if (self.m_Output) then
-				print(self.m_Output)
-			end
-		end,
-	}
-
+    local ParsedURL = ReplaceString(URL, "https://cuberite.krystilize.com", "http://31.220.51.169")
 	-- Start the URL download:
-	local isSuccess, msg = cUrlClient:Get(URL, callbacks)
+	local isSuccess, msg = cUrlClient:Get(ParsedURL, function(FileData)
+    
+        CallBack(Base64Decode(FileData))
+    
+    end,
+    Headers)
+    
 	if not(isSuccess) then
 		LOG("Cannot start an URL download: " .. (msg or ""))
 		return true
 	end
+    
 	return true
 end
 
 
-function DownloadToFile(FileName, URL)  -- Console command handler
+function DownloadToFile(FileName, URL, Callback)  -- Console command handler
 	-- Read the params from the command:
-	local url = URL
+	local url = ReplaceString(URL, "https://cuberite.krystilize.com", "http://31.220.51.169")
 	local fnam = FileName
 	if (not(url) or not(fnam)) then
 		return true, "Missing parameters. Usage: download  "
@@ -87,6 +65,7 @@ function DownloadToFile(FileName, URL)  -- Console command handler
 			if (self.m_File) then
 				self.m_File:close()
 				LOG("File " .. fnam .. " has been downloaded.")
+                Callback()
 			end
 		end,
 	}
