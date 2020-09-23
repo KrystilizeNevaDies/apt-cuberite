@@ -1,30 +1,71 @@
-## apt-cuberite
+# apt-cuberite
 A plugin package manager for cuberite
 
-## Usage
+# Usage
 
-# apt help
+
+## apt help
 (Displays help menu)
 
 E.G.
 apt help
 
-# apt info
-(Displays info on plugin)
+
+## apt install
+(Installs plugin)
 
 E.G.
-apt info realtime
+apt install core portals
 
-
-# apt install
-(Installs plugin and dependencies)
+## apt installall
+(Installs all available plugins)
 
 E.G.
-apt install worldedit
+apt installall
 
 
-# apt remove
+## apt remove
 (removes plugin)
 
 E.G.
-apt remove worldedit
+apt remove essentials coreanticheat
+
+## apt removeall
+(remove plugins)
+
+E.G.
+apt removeall
+
+
+## apt update
+(updates a plugin)
+
+E.G.
+apt update shopify particletrails
+
+## apt updateall
+(update plugins)
+
+E.G.
+apt updateall
+
+
+## apt info
+(Displays info on plugin)
+
+E.G.
+apt info bankapi
+
+
+## apt list
+(Lists all installed apt plugins)
+
+E.G.
+apt list
+
+
+## apt list all
+(lists all available plugins)
+
+E.G.
+apt list all

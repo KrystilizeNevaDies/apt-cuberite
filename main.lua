@@ -26,6 +26,7 @@ function Initialize(Plugin)
         LOGINFO("Detected linux, installing unzip...")
         LOGINFO("You may need to enter your user's password")
         os.execute("sudo apt install unzip")
+        LOGINFO("Done.")
     end
 
     cPluginManager.BindConsoleCommand("apt", HandleCmdApt, "Apt Command Entrypoint")
@@ -62,6 +63,8 @@ function HandleCmdApt(Split, Player)
     apt:
     help (Displays this menu)
     info (Displays info on plugin)
+    update (Updates plugin)
+    updateall (Updates all installed plugins)
     install (Installs plugin)
     installall (Installs every single plugin (not recommended for raspberry pi's lol))
     remove (Removes Plugin)
@@ -82,13 +85,17 @@ function HandleCmdApt(Split, Player)
         else
             HandleInternalList(Player) -- Lists internal plugins
         end
+    elseif Arg2 == "update" then
+        QueueFunctions(Split, HandleUpdateCMD, Player) -- Updates a plugin from external database
+    elseif Arg2 == "updateall" then
+        HandleUpdateAllCMD(Player) -- Updates all plugins from external database
     elseif Arg2 == "install" then
-        HandleInstallCMD(Split, Player) -- Installs a plugin from external database
-    elseif Arg2 == "remove" then
-        HandleRemoveCMD(Split, Player) -- Removes a plugin from the local apt repository
+        QueueFunctions(Split, HandleInstallCMD, Player) -- Installs a plugin from external database
     elseif Arg2 == "installall" then
         -- WHY??????
         HandleInstallAllCMD(Player) -- Installs all plugins from external databases
+    elseif Arg2 == "remove" then
+        QueueFunctions(Split, HandleRemoveCMD, Player) -- Removes a plugin from the local apt repository
     elseif Arg2 == "removeall" then
         -- Actually, pretty useful
         HandleRemoveAllCMD(Player) -- Removes all apt plugins
@@ -100,6 +107,14 @@ function HandleCmdApt(Split, Player)
     end
 
     return true
+end
+
+function QueueFunctions(Split, Callback, Player)
+  for Key, Value in ipairs(Split) do
+      if Key > 2.5 then
+          Callback(Value, Player)
+      end
+  end
 end
 
 -- apt installall
@@ -125,26 +140,23 @@ function HandleInstallAllCMD(Player) -- run for each plugin
 end
 
 -- apt install <plugin>
-function HandleInstallCMD(Split, Player) -- run for each plugin
+function HandleInstallCMD(PluginName, Player) -- run for each plugin
     -- ensure pluginname is set
-    if Split[3] == nil then
+    if PluginName == nil then
         if Player then
             Player:SendMessageInfo("You need to specify a plugin")
         end
         LOGWARNING("You need to specify a plugin")
         return
     end
-    for Key, PluginName in ipairs(Split) do
-        if Key > 2.5 then
-            ApiRequest(
-                {["PluginInfo"] = PluginName},
-                "https://cuberite.krystilize.com",
-                function(Response)
-                    HandleInstallPrepare(PluginName, Response, Player)
-                end
-            )
+    
+    ApiRequest(
+        {["PluginInfo"] = PluginName},
+        "https://cuberite.krystilize.com",
+        function(Response)
+            HandleInstallPrepare(PluginName, Response, Player)
         end
-    end
+    )
 end
 
 function HandleInstallPrepare(PluginName, Response, Player)
@@ -268,20 +280,16 @@ function HandleRemoveAllCMD(Player) -- run for each plugin
 end
 
 -- apt remove <plugin>
-function HandleRemoveCMD(Split, Player)
+function HandleRemoveCMD(PluginName, Player)
     -- ensure pluginname is set
-    if Split[3] == nil then
+    if PluginName == nil then
         if Player then
             Player:SendMessageInfo("You need to specify a plugin")
         end
         LOGWARNING("You need to specify a plugin")
         return
     end
-    for Key, PluginName in pairs(Split) do
-        if Key > 2.5 then
-            HandleRemove(PluginName, Player)
-        end
-    end
+    HandleRemove(PluginName, Player)
 end
 
 function HandleRemove(PluginName, Player) -- remove plugin
@@ -338,6 +346,45 @@ function HandleRemove(PluginName, Player) -- remove plugin
     )
 end
 
+-- apt update <plugin>
+function HandleUpdateCMD(PluginName, Player)
+    -- ensure pluginname is set
+    if PluginName == nil then
+        if Player then
+            Player:SendMessageInfo("You need to specify a plugin")
+        end
+        LOGWARNING("You need to specify a plugin")
+        return
+    end
+    -- Get installed plugins
+        -- read all folders in "Apt/Info/"
+    local Table = {}
+    for Key, Value in pairs(cFile:GetFolderContents("Plugins/Apt/Info/")) do -- for each folder in apt/info
+        local file = io.open("Plugins/Apt/Info/" .. Value .. "/info.lua", "r")
+        Table[Value] = table.load(file:read("*all")) -- parse table
+        file:close()
+    end
+    
+    -- check if exist and then processs update
+    if Table[PluginName] then
+        HandleRemove(PluginName, Player)
+        HandleInstallCMD(PluginName, Player)
+    else
+        if Player then
+            Player:SendMessageInfo("Plugins not installed. Install with: /apt install " .. PluginName)
+        end
+        LOGINFO("Plugins not installed. Install with: apt install " .. PluginName)
+    end
+end
+
+function HandleUpdateAllCMD(Player) -- run for each plugin
+    local Table = {}
+    for Key, Value in pairs(cFile:GetFolderContents("Plugins/Apt/Info/")) do -- for each folder in apt/info
+        HandleUpdateCMD(Value, Player)
+    end
+end
+
+-- Get list external database
 function HandleExternalList(Player)
     ApiRequest(
         {["PluginList"] = "true"},
