@@ -50,13 +50,9 @@ function DownloadToFile(FileName, URL, Callback)  -- Console command handler
   end
   
   if string.find(DownloadURL, "codeload.github.com") then
-      if os.name() == "Windows" then -- For some reason cUrlClient doesnt work correctly for windows downloading zips
-          os.execute([[cd Plugins\Apt\Libs\ && powershell -command 'curl -o "]] .. FileName .. [[" "]] .. DownloadURL .. "/zip/master" .. [["']])
-          os.execute([[cd Plugins\Apt\Libs\ && powershell -command 'curl -o "]] .. FileName .. [[" "]] .. DownloadURL .. "/zip/master" .. [["']])
-      else
-          cUrlClient:Get(DownloadURL .. "/zip/master", SaveFile)
-          cUrlClient:Get(DownloadURL .. "/zip/alpha", SaveFile)
-      end
+      -- TODO: Fix Windows downloads
+      cUrlClient:Get(DownloadURL .. "/zip/master", SaveFile)
+      cUrlClient:Get(DownloadURL .. "/zip/alpha", SaveFile)
   else
     cUrlClient:Get(DownloadURL, SaveFile)
   end
