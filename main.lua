@@ -22,12 +22,6 @@ function Initialize(Plugin)
         end
     end
 
-    if os.name() == "Linux" then
-        LOGINFO("Detected linux, installing unzip...")
-        LOGINFO("You may need to enter your user's password")
-        os.execute("sudo apt install unzip")
-        LOGINFO("Done.")
-    end
 
     cPluginManager.BindConsoleCommand("apt", HandleCmdApt, "Apt Command Entrypoint")
     cPluginManager.BindCommand("/apt", "apt", HandleCmdApt, " ~ standard apt entrypoint. Use apt help for more info")
@@ -37,79 +31,167 @@ function Initialize(Plugin)
     return true
 end
 
--- Entrypoint
+
+
+
+
+
+-- Send info to console and player is exists
+function SendInfo(String, Player)
+  if Player then
+      Player:SendMessageInfo(String)
+  end
+  LOGINFO(String)
+end
+
+
+
+
+
+-- Send warning to console and player if exists
+function SendWarning(String, Player)
+  if Player then
+      Player:SendMessageWarning(String)
+  end
+  LOGWARNING(String)
+end
+
+
+
+
+
+-- Entrypoint for apt command
 function HandleCmdApt(Split, Player)
+    -- check if arguments exist
     if not (Split[2]) then
-        if Player then
-            Player:SendMessageInfo("Apt-Cuberite version 1.0.0")
-            Player:SendMessageInfo("Run [apt help] for help on usage")
-        end
-        LOGINFO("Apt-Cuberite version 1.0.0")
-        LOGINFO("Run [apt help] for help on usage")
+        SendInfo("Apt-Cuberite version 1.0.0", Player)
+        SendInfo("Run [apt help] for help on usage", Player)
         return true
     end
 
-    -- remove capitalisation
+
+
+
+
+    -- remove capitalisation because thats cringe
     for _, Value in pairs(Split) do
         Value = string.lower(Value)
     end
 
-    -- set arg2 so it doesnt have to be re-indexed in if's
+
+
+
+
+    -- set arg2 so it doesnt have to be re-indexed in if checks
     local Arg2 = string.lower(Split[2])
 
-    if Arg2 == "help" then -- Redimentary help menu
-        local help =
-            [[
-    apt:
-    help (Displays this menu)
-    info (Displays info on plugin)
-    update (Updates plugin)
-    updateall (Updates all installed plugins)
-    install (Installs plugin)
-    installall (Installs every single plugin (not recommended for raspberry pi's lol))
-    remove (Removes Plugin)
-    removeall (Removs all installed plugins)
-    list (lists local Plugins)
-    list all (lists all plugins)
-    ]]
 
-        if Player then
-            Player:SendMessageInfo(help)
-        end
-        LOGINFO(help)
+
+
+
+    -- Rudimentary help menu
+    if Arg2 == "help" then
+        local Help =
+            [[
+apt:
+  help (Displays this menu)
+  info (Displays info on plugin)
+  update (Updates plugin)
+  updateall (Updates all installed plugins)
+  install (Installs plugin)
+  installall (Installs every single plugin (not recommended for raspberry pi's lol))
+  remove (Removes Plugin)
+  removeall (Removs all installed plugins)
+  list (lists local Plugins)
+  list all (lists all plugins)
+            ]]
+        SendInfo(Help, Player)
+        
+        
+        
+        
+        
     elseif Arg2 == "info" then -- Gets info from external database
         HandleInfo(Split[3], Player)
+        
+        
+        
+        
+        
     elseif Arg2 == "list" then -- Lists apt plugins
         if Split[3] == "all" then -- Lists all (external) plugins
             HandleExternalList(Player)
         else
             HandleInternalList(Player) -- Lists internal plugins
         end
+        
+        
+        
+        
+        
     elseif Arg2 == "update" then
-        QueueFunctions(Split, HandleUpdateCMD, Player) -- Updates a plugin from external database
+        ForArguments(Split, HandleUpdateCMD, Player) -- Updates a plugin from external database
+        
+        
+        
+        
+        
     elseif Arg2 == "updateall" then
         HandleUpdateAllCMD(Player) -- Updates all plugins from external database
+        
+        
+        
+        
+        
     elseif Arg2 == "install" then
-        QueueFunctions(Split, HandleInstallCMD, Player) -- Installs a plugin from external database
+        ForArguments(Split, HandleInstallCMD, Player) -- Installs a plugin from external database
+        
+        
+        
+        
+        
     elseif Arg2 == "installall" then
         -- WHY??????
         HandleInstallAllCMD(Player) -- Installs all plugins from external databases
+        
+        
+        
+        
+        
     elseif Arg2 == "remove" then
-        QueueFunctions(Split, HandleRemoveCMD, Player) -- Removes a plugin from the local apt repository
+        ForArguments(Split, HandleRemoveCMD, Player) -- Removes a plugin from the local apt repository
+        
+        
+        
+        
+        
     elseif Arg2 == "removeall" then
         -- Actually, pretty useful
         HandleRemoveAllCMD(Player) -- Removes all apt plugins
+        
+        
+        
+        
+        
     else
-        if Player then
-            Player:SendMessageInfo("Unknown apt subcommand. Do [apt help] to get help")
-        end
-        LOGINFO("Unknown apt subcommand. Do [apt help] to get help") -- Unkown command
+        SendInfo("Unknown apt subcommand. Do [apt help] to get help", Player) -- Unkown command
     end
 
+
+
+
+
+    -- Either way, return true so users dont panic
     return true
 end
 
-function QueueFunctions(Split, Callback, Player)
+
+
+
+
+-- Utility function used to run multiple functions.
+-- uses every value of Split which has a key larger then 2
+function ForArguments(Split, Callback, Player)
   for Key, Value in ipairs(Split) do
       if Key > 2.5 then
           Callback(Value, Player)
@@ -117,159 +199,6 @@ function QueueFunctions(Split, Callback, Player)
   end
 end
 
--- apt installall
-function HandleInstallAllCMD(Player) -- run for each plugin
-    local Split = {}
-    ApiRequest(
-        {["PluginList"] = "true"},
-        "https://cuberite.krystilize.com",
-        function(Response)
-            -- parse into table
-            local Table = table.load(Response)
-            for Key, Value in pairs(Table) do -- log information on each
-                ApiRequest(
-                    {["PluginInfo"] = Key},
-                    "https://cuberite.krystilize.com",
-                    function(Response)
-                        HandleInstallPrepare(Key, Response, Player)
-                    end
-                )
-            end
-        end
-    )
-end
-
--- apt install <plugin>
-function HandleInstallCMD(PluginName, Player) -- run for each plugin
-    -- ensure pluginname is set
-    if PluginName == nil then
-        if Player then
-            Player:SendMessageInfo("You need to specify a plugin")
-        end
-        LOGWARNING("You need to specify a plugin")
-        return
-    end
-    
-    ApiRequest(
-        {["PluginInfo"] = PluginName},
-        "https://cuberite.krystilize.com",
-        function(Response)
-            HandleInstallPrepare(PluginName, Response, Player)
-        end
-    )
-end
-
-function HandleInstallPrepare(PluginName, Response, Player)
-    Info = table.load(Response)
-    local LocalInfo = {}
-
-    if Info == nil then
-        if Player then
-            Player:SendMessageInfo("Plugin: " .. PluginName .. " not found.")
-        end
-        LOGWARNING("Plugin: " .. PluginName .. " not found.")
-        return
-    end
-
-    for Key, Value in pairs(Info) do
-        LocalInfo[Key] = Value
-    end
-
-    -- Save plugin info to Apt/Info
-    cFile:CreateFolderRecursive("Plugins/Apt/Info/" .. PluginName .. "/")
-    local file = io.open("Plugins/Apt/Info/" .. PluginName .. "/info.lua", "w+")
-    file:write(table.save(LocalInfo))
-    file:close()
-
-  local IsFirstDownload = true
-
-    -- Download file
-    DownloadToFile("Plugins/" .. LocalInfo.PluginDirectory .. ".zip", LocalInfo.DownloadDirectory,function(Success)
-          if Success and IsFirstDownload then
-            IsFirstDownload = false
-            local Query = string.find(LocalInfo.DownloadDirectory, "/zip/")
-            HandleInstall(PluginName, LocalInfo, Query, Player)
-          end
-      end)
-    -- os.execute([[curl "]] .. Table.DownloadDirectory .. [[" --output ]] .. "Plugins/" .. Table.PluginDirectory .. ".zip")
-end
-
-function HandleInstall(PluginName, Info, IsGithub, Player) -- Install plugin
-    local Table = Info
-    --TODO: support old win versions:
-    --[[
-  E.G.
-  path=whatever && powershell -command "Expand-Archive -Force '%path/my_zip_file.zip' '%path'"
-  ]]
-    -- Check if plugin folder is occupied
-    if cFile:IsFolder("Plugins/" .. Table.PluginDirectory) then
-        if Player then
-            Player:SendMessageWarning("Folder is occupied, is this plugin already installed?")
-        end
-        LOGWARNING("Folder is occupied, is this plugin already installed?")
-        return
-    end
-
-    if Player then
-        Player:SendMessageInfo("Extracting...")
-    end
-    LOGINFO("Extracting...")
-    if os.name() == "Windows" then
-        local MakeDir = os.capture([[mkdir "Plugins/]] .. Table.PluginDirectory .. [["]])
-        local Extract =
-            os.capture(
-            [[tar -xf "]] ..
-                "Plugins/" .. Table.PluginDirectory .. [[.zip" -C "]] .. "Plugins/" .. Table.PluginDirectory .. [["]]
-        )
-        if Player and #MakeDir > 1 and #Extract > 1 then
-            Player:SendMessageInfo(MakeDir)
-            Player:SendMessageInfo(Extract)
-            LOGINFO(MakeDir)
-            LOGINFO(Extract)
-        end
-    elseif os.name() == "Linux" then
-        local MakeDir = os.capture([[mkdir "Plugins/]] .. Table.PluginDirectory .. [["]])
-        local Extract =
-            os.capture([[unzip -o -q "]] .. "Plugins/" .. Table.PluginDirectory .. [[.zip" -d "]] .. "Plugins/" .. Table.PluginDirectory .. [["]])
-        if Player and #MakeDir > 1 or #Extract > 1 then
-            Player:SendMessageInfo(MakeDir)
-            Player:SendMessageInfo(Extract)
-            LOGINFO(MakeDir)
-            LOGINFO(Extract)
-        end
-    end
-
-    -- Fix file structure
-    local Dir = Table.PluginDirectory
-    for Key, Value in pairs(cFile:GetFolderContents("Plugins/" .. Dir)) do -- -master folder
-      if os.name() == "Windows" then
-          os.execute([[move "Plugins/]] .. Dir .. "/" .. Value .. [[/*" "Plugins/]] .. Dir .. "/")
-      else
-          os.capture([[mv -v -f "Plugins/]] .. Dir .. "/" .. Value .. [["/* "Plugins/]] .. Dir .. '/"')
-          os.capture([[rm -r -f "Plugins/]] .. Dir .. "/" .. Value .. [["]])
-      end
-    end
-
-    -- Update settings.ini
-    if Player then
-        Player:SendMessageInfo("Loading...")
-    end
-    LOGINFO("Loading...")
-    local IniFile = cIniFile()
-    if (IniFile:ReadFile("settings.ini")) then
-        IniFile:SetValue("Plugins", Table.PluginDirectory, 1, true)
-        IniFile:WriteFile("settings.ini")
-    end
-
-    -- Finalise and load plugin
-    cPluginManager:Get():RefreshPluginList()
-    cPluginManager:Get():LoadPlugin(Table.PluginDirectory)
-    if Player then
-        Player:SendMessageSuccess("Installed " .. Table.PluginDirectory .. "!")
-    end
-    LOGINFO("Installed " .. Table.PluginDirectory .. "!")
-    cPluginManager:Get():RefreshPluginList()
-end
 
 -- apt removeall
 function HandleRemoveAllCMD(Player) -- run for each plugin

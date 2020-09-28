@@ -35,23 +35,28 @@ function DownloadToFile(FileName, URL, Callback)  -- Console command handler
 
   local DownloadedQuery = false
   
-  local SaveFile = function(FileData)
+  local SaveFile = function(FileData, Error)
       if FileData and FileData ~= "404: Not Found" and not(DownloadedQuery) then
-        DownloadedQuery = true
-        local File = io.open(FileName, "w+")
-        File:write(FileData)
-        File:close()
-        Callback(true)
+        if FileData then
+          DownloadedQuery = true
+          local File = io.open(FileName, "w+")
+          File:write(FileData)
+          File:close()
+          Callback(true)
+        else
+          SendWarning(Error)
+        end
       end
   end
   
   if string.find(DownloadURL, "codeload.github.com") then
-      if Player then
-          Player:SendMessageInfo("Trying to download: " .. DownloadURL)
+      if os.name() == "Windows" then -- For some reason cUrlClient doesnt work correctly for windows downloading zips
+          os.execute([[cd Plugins\Apt\Libs\ && powershell -command 'curl -o "]] .. FileName .. [[" "]] .. DownloadURL .. "/zip/master" .. [["']])
+          os.execute([[cd Plugins\Apt\Libs\ && powershell -command 'curl -o "]] .. FileName .. [[" "]] .. DownloadURL .. "/zip/master" .. [["']])
+      else
+          cUrlClient:Get(DownloadURL .. "/zip/master", SaveFile)
+          cUrlClient:Get(DownloadURL .. "/zip/alpha", SaveFile)
       end
-      LOGINFO("Trying to download: " .. DownloadURL)
-      cUrlClient:Get(DownloadURL .. "/zip/master", SaveFile)
-      cUrlClient:Get(DownloadURL .. "/zip/alpha", SaveFile)
   else
     cUrlClient:Get(DownloadURL, SaveFile)
   end
